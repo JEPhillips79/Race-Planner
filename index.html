@@ -31,6 +31,21 @@
 
   <div id="output"></div>
 
+  <hr>
+
+  <h3>Add a New Race</h3>
+  <input id="raceTime" type="datetime-local" />
+  <input id="course" placeholder="Course (e.g. RG-1-2-3)" />
+  <input id="distance" type="number" placeholder="Distance (nm)" />
+  <input id="title" placeholder="Race Title" />
+  <button onclick="submitRace()">Submit Race</button>
+
+  <h3>Add a New Mark</h3>
+  <input id="markName" placeholder="Mark Name" />
+  <input id="lat" placeholder="Latitude" />
+  <input id="lon" placeholder="Longitude" />
+  <button onclick="submitMark()">Add Mark</button>
+
   <script>
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz_g_AYdoEdMjEueSEcXGvFiCZP5cooh2YCamnLJpPAYOAXgMYmj4_V6me32MPWP8M/exec';
 
@@ -66,6 +81,38 @@
 
       document.getElementById('output').innerText =
         `Your start time is ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    }
+
+    async function submitRace() {
+      const time = document.getElementById('raceTime').value;
+      const course = document.getElementById('course').value;
+      const distance = document.getElementById('distance').value;
+      const title = document.getElementById('title').value;
+      const res = await fetch(WEB_APP_URL + '?action=addRace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time, course, distance, title })
+      });
+      const result = await res.text();
+      alert(result);
+      loadRaceSelect();
+    }
+
+    async function submitMark() {
+      const name = document.getElementById('markName').value;
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lon = parseFloat(document.getElementById('lon').value);
+      if (!name || isNaN(lat) || isNaN(lon)) {
+        alert("Please fill in valid mark info");
+        return;
+      }
+      const res = await fetch(WEB_APP_URL + '?action=addMark', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, lat, lon })
+      });
+      const result = await res.text();
+      alert(result);
     }
 
     window.onload = loadRaceSelect;
