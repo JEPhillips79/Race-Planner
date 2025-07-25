@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DCYC Pursuit Race Planner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DCYC Pursuit Race Planner (Google Sheets)</title>
   <style>
     body { font-family: sans-serif; padding: 1rem; }
     .section { margin-bottom: 2rem; }
@@ -15,240 +16,59 @@
   </style>
 </head>
 <body>
-  <div id="racerSection">
-    <h2>Race Start Time Calculator</h2>
-    <div class="section">
-      <label for="raceSelect">Select Race:</label>
-      <select id="raceSelect"></select>
-    </div>
-    <div class="section">
-      <label for="phrf">Enter your PHRF:</label>
-      <input type="number" id="phrf" />
-      <button onclick="calculateStart()">Calculate Start Time</button>
-    </div>
-    <div id="output"></div>
-    <button onclick="document.getElementById('racerSection').classList.add('hidden'); document.getElementById('adminSection').classList.remove('hidden');">Fleet Captain Login</button>
+  <h2>Race Start Time Calculator (Google Sheets)</h2>
+
+  <div class="section">
+    <label for="raceSelect">Select Race:</label>
+    <select id="raceSelect"></select>
   </div>
 
-  <div id="adminSection" class="hidden">
-    <h2>Fleet Captain Admin</h2>
-    <div id="login">
-      <input type="password" id="adminPass" placeholder="Enter password">
-      <button onclick="checkPassword()">Login</button>
-    </div>
-
-    <div id="adminPanel" class="hidden">
-      <h3>Create Race</h3>
-      <div id="raceInfo" style="font-size: 1.25rem; font-weight: bold; margin-top: 0.5rem;"></div>
-      <input type="datetime-local" id="raceTime">
-      <div id="courseBuilder"></div>
-      <div id="coursePreview"></div>
-      <button onclick="clearCourse()">Clear Course</button>
-      <button onclick="createRace()">Create Race</button><div style="margin-bottom: 1rem;"></div>
-      <button onclick="document.getElementById('adminPanel').classList.add('hidden'); document.getElementById('marksPanel').classList.remove('hidden');">Create/Edit Marks</button>
-      <div style="margin-top: 2rem;"></div>
-      <button onclick="document.getElementById('adminSection').classList.add('hidden'); document.getElementById('racerSection').classList.remove('hidden');">Be a Racer</button>
-    </div>
+  <div class="section">
+    <label for="phrf">Enter your PHRF:</label>
+    <input type="number" id="phrf" />
+    <button onclick="calculateStart()">Calculate Start Time</button>
   </div>
+
+  <div id="output"></div>
 
   <script>
-    const PASS = '1399';
-    let courseSequence = [];
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz_g_AYdoEdMjEueSEcXGvFiCZP5cooh2YCamnLJpPAYOAXgMYmj4_V6me32MPWP8M/exec';
 
-    function checkPassword() {
-      const input = document.getElementById('adminPass').value;
-      if (input === PASS) {
-        document.getElementById('login').classList.add('hidden');
-        document.getElementById('adminPanel').classList.remove('hidden');
-        setTimeout(updateUI, 100);
-      } else {
-        alert('Incorrect password. Please check your password and try again.');
-      }
-    }
-
-    function updateUI() {
-      const marks = JSON.parse(localStorage.getItem('marks') || '[]');
-      const list = document.getElementById('marksList');
-      const builder = document.getElementById('courseBuilder');
-      if (list) list.innerHTML = '';
-      builder.innerHTML = '';
-      marks.sort((a, b) => {
-        if (a.name === 'RG') return -1;
-        if (b.name === 'RG') return 1;
-        return a.name.localeCompare(b.name, undefined, { numeric: true });
-      });
-      marks.forEach(m => {
-        const btn = document.createElement('button');
-        btn.textContent = `${m.name}: ${m.lat}, ${m.lon}`;
-        btn.onclick = () => {
-          document.getElementById('markName').value = m.name;
-          document.getElementById('lat').value = m.lat;
-          document.getElementById('lon').value = m.lon;
-        };
-        const delBtn = document.createElement('button');
-        delBtn.textContent = `Delete ${m.name}`;
-        delBtn.style.background = 'red';
-        delBtn.style.color = 'white';
-        delBtn.onclick = () => {
-          if (confirm(`Are you sure you want to delete mark ${m.name}?`)) {
-            const newMarks = marks.filter(mark => mark.name !== m.name);
-            localStorage.setItem('marks', JSON.stringify(newMarks));
-            updateUI();
-          }
-        };
-        const btnWrapper = document.createElement('div');
-        btnWrapper.style.display = 'flex';
-        btnWrapper.style.gap = '0.5rem';
-        btnWrapper.appendChild(btn);
-        btnWrapper.appendChild(delBtn);
-        if (list) list.appendChild(btnWrapper);
-
-        const addToCourseBtn = document.createElement('button');
-        addToCourseBtn.textContent = m.name;
-        addToCourseBtn.className = 'course-mark';
-        addToCourseBtn.onclick = () => {
-          courseSequence.push(m.name);
-          renderCourse();
-        };
-        builder.appendChild(addToCourseBtn);
-      });
-    }
-
-    function clearCourse() {
-      courseSequence = [];
-      renderCourse();
-    }
-
-    function haversine(lat1, lon1, lat2, lon2) {
-      const R = 3440;
-      const toRad = deg => deg * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2)**2;
-      return 2 * R * Math.asin(Math.sqrt(a));
-    }
-
-    function renderCourse() {
-      const marks = JSON.parse(localStorage.getItem('marks') || '[]');
-      let dist = 0;
-      for (let i = 0; i < courseSequence.length - 1; i++) {
-        const m1 = marks.find(m => m.name === courseSequence[i]);
-        const m2 = marks.find(m => m.name === courseSequence[i+1]);
-        if (m1 && m2) dist += haversine(m1.lat, m1.lon, m2.lat, m2.lon);
-      }
-      const preview = document.getElementById('coursePreview');
-      preview.textContent = `Course: ${courseSequence.join(' - ')} | Distance: ${dist.toFixed(2)} nm`;
-    }
-
-    function addMark() {
-      const name = document.getElementById('markName').value;
-      const lat = parseFloat(document.getElementById('lat').value);
-      const lon = parseFloat(document.getElementById('lon').value);
-      if (!name || isNaN(lat) || isNaN(lon)) {
-        alert('Invalid input');
-        return;
-      }
-      let marks = JSON.parse(localStorage.getItem('marks') || '[]');
-      const idx = marks.findIndex(m => m.name === name);
-      if (idx >= 0) marks[idx] = { name, lat, lon };
-      else marks.push({ name, lat, lon });
-      localStorage.setItem('marks', JSON.stringify(marks));
-      updateUI();
-    }
-
-    function createRace() {
-      const time = document.getElementById('raceTime').value;
-      if (courseSequence.length < 2 || !time) {
-        alert('Build a course with at least 2 marks and a time');
-        return;
-      }
-      const marks = JSON.parse(localStorage.getItem('marks') || '[]');
-      let dist = 0;
-      for (let i = 0; i < courseSequence.length - 1; i++) {
-        const m1 = marks.find(m => m.name === courseSequence[i]);
-        const m2 = marks.find(m => m.name === courseSequence[i+1]);
-        if (m1 && m2) dist += haversine(m1.lat, m1.lon, m2.lat, m2.lon);
-      }
-      const title = `${new Date(time).toLocaleString()}, ${courseSequence.join('-')}, Distance ${dist.toFixed(2)}nm`;
-      const races = JSON.parse(localStorage.getItem('races') || '[]');
-      races.push({ time, distance: dist, course: courseSequence.join('-'), title });
-      localStorage.setItem('races', JSON.stringify(races));
-      document.getElementById('raceInfo').innerText = title;
-      courseSequence = [];
-      renderCourse();
-      loadRaces();
-    }
-
-    function loadRaces() {
-      const sel = document.getElementById('raceSelect');
-      sel.innerHTML = '';
-      let races = JSON.parse(localStorage.getItem('races') || '[]');
-      const now = new Date();
-      races = races.filter(r => {
-        const raceDate = new Date(r.time);
-        return now < new Date(raceDate.getTime() + 60 * 60 * 1000);
-      });
-      localStorage.setItem('races', JSON.stringify(races));
+    async function loadRaceSelect() {
+      const res = await fetch(WEB_APP_URL + '?action=getRaces');
+      const races = await res.json();
+      const select = document.getElementById('raceSelect');
+      select.innerHTML = '';
       races.forEach((r, i) => {
         const opt = document.createElement('option');
         opt.value = i;
         opt.textContent = r.title;
-        sel.appendChild(opt);
+        select.appendChild(opt);
       });
+      window.races = races;
     }
 
     function calculateStart() {
       const phrf = parseInt(document.getElementById('phrf').value);
-      const idx = document.getElementById('raceSelect').value;
-      const races = JSON.parse(localStorage.getItem('races') || '[]');
-      const race = races[idx];
-      if (!race || isNaN(phrf)) {
-        alert("Invalid input");
+      if (isNaN(phrf)) {
+        alert('Enter a valid PHRF rating.');
         return;
       }
-      const offset = (phrf - 300) * race.distance * 6;
-      const startTime = new Date(new Date(race.time).getTime() + offset * 1000);
-      let html = `<h3>${race.course}</h3><p style='font-weight:bold; font-size:1.2rem;'>Start at: ${startTime.toLocaleTimeString()}</p>`;
-      if (confirm('Start a countdown timer?')) {
-        let seconds = Math.floor((startTime - new Date()) / 1000);
-        const div = document.createElement('div');
-        const stop = document.createElement('button');
-        stop.textContent = 'STOP';
-        const timer = setInterval(() => {
-          if (seconds > 0) {
-            div.innerHTML = `Countdown: ${Math.floor(seconds/60)}m ${seconds%60}s`;
-            seconds--;
-          } else {
-            div.innerHTML = `+${Math.abs(seconds)}s`;
-            seconds++;
-          }
-        }, 1000);
-        stop.onclick = () => clearInterval(timer);
-        document.getElementById('output').innerHTML = html;
-        document.getElementById('output').append(div, stop);
-      } else {
-        document.getElementById('output').innerHTML = html;
-      }
+
+      const idx = document.getElementById('raceSelect').value;
+      const race = window.races[idx];
+      const distance = parseFloat(race.distance);
+      const basePHRF = 300;
+      const delaySeconds = (phrf - basePHRF) * 6 * distance;
+
+      const baseTime = new Date(race.time);
+      const startTime = new Date(baseTime.getTime() + delaySeconds * 1000);
+
+      document.getElementById('output').innerText =
+        `Your start time is ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
     }
 
-    window.onload = () => {
-      preloadMarks();
-      loadRaces();
-    };
-
-    function preloadMarks() {
-      const defaultMarks = [
-        { name: 'RG', lat: 33.156500, lon: -96.995733 },
-        { name: '1', lat: 33.161217, lon: -97.004050 },
-        { name: '2', lat: 33.148750, lon: -96.993567 },
-        { name: '3', lat: 33.143717, lon: -96.994050 },
-        { name: '4', lat: 33.143650, lon: -96.997400 },
-        { name: '6', lat: 33.149117, lon: -97.005950 },
-        { name: '12', lat: 33.166667, lon: -97.011950 }
-      ];
-      if (!localStorage.getItem('marks')) {
-        localStorage.setItem('marks', JSON.stringify(defaultMarks));
-      }
-      updateUI();
-    }
+    window.onload = loadRaceSelect;
   </script>
+</body>
+</html>
