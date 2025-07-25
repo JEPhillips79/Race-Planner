@@ -6,13 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>DCYC Pursuit Race Planner (Google Sheets)</title>
   <style>
-    body { font-family: sans-serif; padding: 1rem; }
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
     .section { margin-bottom: 2rem; }
-    button, input, select { width: 100%; margin-top: 0.5rem; padding: 0.75rem; font-size: 1rem; }
+    button, input, select {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      font-size: 1rem;
+    }
+    #output { margin-top: 1rem; font-weight: bold; }
     .hidden { display: none; }
-    #courseBuilder { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
-    .course-mark { padding: 0.5rem 1rem; background: #ddd; border-radius: 5px; cursor: pointer; }
-    #coursePreview { margin-top: 1rem; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -25,29 +28,37 @@
 
   <div class="section">
     <label for="phrf">Enter your PHRF:</label>
-    <input type="number" id="phrf" />
+    <input type="number" id="phrf" placeholder="e.g. 186" />
     <button onclick="calculateStart()">Calculate Start Time</button>
+    <div id="output"></div>
   </div>
 
-  <div id="output"></div>
+  <button onclick="document.getElementById('adminLogin').classList.toggle('hidden')">Fleet Captain Login</button>
 
-  <hr>
+  <div id="adminLogin" class="hidden">
+    <input type="password" id="adminPass" placeholder="Enter Password" />
+    <button onclick="verifyAdmin()">Login</button>
+  </div>
 
-  <h3>Add a New Race</h3>
-  <input id="raceTime" type="datetime-local" />
-  <input id="course" placeholder="Course (e.g. RG-1-2-3)" />
-  <input id="distance" type="number" placeholder="Distance (nm)" />
-  <input id="title" placeholder="Race Title" />
-  <button onclick="submitRace()">Submit Race</button>
+  <div id="adminPanel" class="hidden">
+    <hr>
+    <h3>Add a New Race</h3>
+    <input id="raceTime" type="datetime-local" />
+    <input id="course" placeholder="Course (e.g. RG-1-2-3)" />
+    <input id="distance" type="number" step="0.01" placeholder="Distance (nm)" />
+    <input id="title" placeholder="Race Title" />
+    <button onclick="submitRace()">Submit Race</button>
 
-  <h3>Add a New Mark</h3>
-  <input id="markName" placeholder="Mark Name" />
-  <input id="lat" placeholder="Latitude" />
-  <input id="lon" placeholder="Longitude" />
-  <button onclick="submitMark()">Add Mark</button>
+    <h3>Add a New Mark</h3>
+    <input id="markName" placeholder="Mark Name" />
+    <input id="lat" type="number" step="0.000001" placeholder="Latitude" />
+    <input id="lon" type="number" step="0.000001" placeholder="Longitude" />
+    <button onclick="submitMark()">Add Mark</button>
+  </div>
 
   <script>
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz_g_AYdoEdMjEueSEcXGvFiCZP5cooh2YCamnLJpPAYOAXgMYmj4_V6me32MPWP8M/exec';
+    const ADMIN_PASSWORD = '1399';
 
     async function loadRaceSelect() {
       const res = await fetch(WEB_APP_URL + '?action=getRaces');
@@ -75,7 +86,6 @@
       const distance = parseFloat(race.distance);
       const basePHRF = 300;
       const delaySeconds = (phrf - basePHRF) * 6 * distance;
-
       const baseTime = new Date(race.time);
       const startTime = new Date(baseTime.getTime() + delaySeconds * 1000);
 
@@ -88,11 +98,13 @@
       const course = document.getElementById('course').value;
       const distance = document.getElementById('distance').value;
       const title = document.getElementById('title').value;
+
       const res = await fetch(WEB_APP_URL + '?action=addRace', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ time, course, distance, title })
       });
+
       const result = await res.text();
       alert(result);
       loadRaceSelect();
@@ -102,17 +114,30 @@
       const name = document.getElementById('markName').value;
       const lat = parseFloat(document.getElementById('lat').value);
       const lon = parseFloat(document.getElementById('lon').value);
+
       if (!name || isNaN(lat) || isNaN(lon)) {
-        alert("Please fill in valid mark info");
+        alert("Please enter a valid mark name, latitude, and longitude.");
         return;
       }
+
       const res = await fetch(WEB_APP_URL + '?action=addMark', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, lat, lon })
       });
+
       const result = await res.text();
       alert(result);
+    }
+
+    function verifyAdmin() {
+      const input = document.getElementById('adminPass').value;
+      if (input === ADMIN_PASSWORD) {
+        document.getElementById('adminPanel').classList.remove('hidden');
+        document.getElementById('adminLogin').classList.add('hidden');
+      } else {
+        alert("Incorrect password.");
+      }
     }
 
     window.onload = loadRaceSelect;
